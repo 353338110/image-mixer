@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+.venv/
+venv/
+
+# Flutter / Dart
+frontend/.dart_tool/
+frontend/.packages
+frontend/build/
+frontend/.flutter-plugins
+frontend/.flutter-plugins-dependencies
+frontend/.metadata
+frontend/pubspec.lock
+
+# OS
+.DS_Store
+Thumbs.db
+.idea/
+
+# App cache
+**/.imagemixer_cache.sqlite3
+**/_duplicates_review/
+
+# Build artifacts
+backend/build/
+backend/dist/
+dist/
