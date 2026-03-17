@@ -3,7 +3,7 @@
 #define AppName "ImageMixer"
 #define AppVersion "1.0.0"
 #define AppPublisher "ImageMixer"
-#define AppBuildDir "frontend\\build\\windows\\x64\\runner\\Release"
+#define AppBuildDir "..\\frontend\\build\\windows\\x64\\runner\\Release"
 #define AppExeName "imagemixer_desktop.exe"
 
 [Setup]
