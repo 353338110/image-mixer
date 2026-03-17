@@ -35,8 +35,18 @@ jobs:
         shell: cmd
         run: scripts\package_all.bat
 
+      - name: Locate Installer
+        shell: pwsh
+        run: |
+          Write-Host "Workspace: $pwd"
+          Get-ChildItem -Path . -Recurse -File -Filter "ImageMixer-Setup.exe" | Select-Object FullName, Length
+
       - name: Upload Installer
         uses: actions/upload-artifact@v4
         with:
           name: ImageMixer-Windows-Installer
-          path: dist/ImageMixer-Setup.exe
+          if-no-files-found: error
+          path: |
+            dist/ImageMixer-Setup.exe
+            scripts/dist/ImageMixer-Setup.exe
+            **/ImageMixer-Setup.exe

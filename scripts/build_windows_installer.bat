@@ -27,4 +27,10 @@ if not exist "%BACKEND_EXE%" (
 
 iscc /O"%ROOT_DIR%\dist" "%ROOT_DIR%\scripts\build_windows_installer.iss"
 
+if not exist "%ROOT_DIR%\dist\ImageMixer-Setup.exe" (
+  echo Installer not found: %ROOT_DIR%\dist\ImageMixer-Setup.exe
+  dir /s /b "%ROOT_DIR%\*ImageMixer-Setup.exe"
+  exit /b 1
+)
+
 echo Installer generated under %ROOT_DIR%\dist\
