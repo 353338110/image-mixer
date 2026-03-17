@@ -14,13 +14,13 @@
 
 ## 技术选型
 
-选择：`Go + MySQL 8 + Caddy`
+选择：`Go + SQLite + Caddy`
 
 原因：
 
 - Go 内存占用低，单二进制部署简单
 - 标准库 + 少量依赖即可完成 API 和后台页面
-- MySQL 适合后续扩展、并发访问、备份恢复和运营查询
+- SQLite 适合单机后台，运维成本低，内存占用更小
 - Caddy 自动处理 HTTPS 证书，适合 `mixer.douxing.cc`
 
 不建议首版再额外引入 Redis、前后端分离管理台。你现在最需要的是能卖、能控、能追踪，不是大而全。
@@ -37,7 +37,7 @@ Caddy (HTTPS, mixer.douxing.cc)
 imagemixer-license-server (Go)
   |
   v
-MySQL 8
+SQLite (data/license.db)
 ```
 
 建议目录：
@@ -47,17 +47,9 @@ MySQL 8
   bin/license-server
   config/.env
   scripts/Caddyfile
+  data/license.db
   logs/
   backups/
-```
-
-MySQL 建议单独部署：
-
-```text
-/opt/mysql/
-  data/
-  backups/
-  logs/
 ```
 
 ## 系统模块
@@ -180,15 +172,15 @@ MySQL 建议单独部署：
 
 建议统一使用：
 
-- `MySQL 8.0`
-- `InnoDB`
-- `utf8mb4`
-- `utf8mb4_0900_ai_ci`
+- `SQLite 3`
+- 打开 `WAL` 模式
+- 打开 `foreign_keys = ON`
+- 配置合理的 `busy_timeout`
 - 时间字段统一存 UTC
 
 ID 如果希望后续对外暴露更安全，建议：
 
-- 数据库主键使用 `BIGINT UNSIGNED AUTO_INCREMENT`
+- 数据库主键使用 `INTEGER PRIMARY KEY`
 - 对外显示再增加业务 ID，例如 `lic_xxx`、`dev_xxx`
 
 ### admins
@@ -254,7 +246,7 @@ ID 如果希望后续对外暴露更安全，建议：
 - `expires_at`
 - `created_at`
 
-## MySQL 索引建议
+## SQLite 索引建议
 
 首版至少加这些索引：
 
@@ -268,15 +260,15 @@ ID 如果希望后续对外暴露更安全，建议：
 
 推荐字段类型：
 
-- `code`: `varchar(64)`
-- `edition`: `varchar(32)`
-- `status`: `varchar(32)`
-- `customer_name`: `varchar(128)`
-- `customer_email`: `varchar(128)`
-- `fingerprint_hash`: `char(64)`
-- `ip`: `varchar(64)`
-- `features_json`: `json`
-- `license_payload_json`: `json`
+- `code`: `TEXT`
+- `edition`: `TEXT`
+- `status`: `TEXT`
+- `customer_name`: `TEXT`
+- `customer_email`: `TEXT`
+- `fingerprint_hash`: `TEXT`
+- `ip`: `TEXT`
+- `features_json`: `TEXT`
+- `license_payload_json`: `TEXT`
 
 ## 管理后台功能
 
@@ -425,7 +417,7 @@ ID 如果希望后续对外暴露更安全，建议：
 ### 第一阶段
 
 - Go 服务端
-- MySQL 8
+- SQLite
 - 管理员登录
 - 激活码管理
 - 设备绑定
@@ -463,16 +455,16 @@ ID 如果希望后续对外暴露更安全，建议：
 - Caddy 负责 TLS
 - Go 服务监听 `127.0.0.1:18080`
 - Caddy 反代到 Go 服务
-- MySQL 建议监听内网或本机 `127.0.0.1:3306`
-- 每日执行 `mysqldump` 备份
-- 定期保留全量备份和最近 7 天增量备份
+- SQLite 文件位于 `/opt/imagemixer-license/data/license.db`
+- 每日使用 `sqlite3 ... ".backup"` 或 `VACUUM INTO` 备份
+- 定期保留全量备份和最近 7 天备份文件
 
 ## 首版结论
 
 如果目标是尽快售卖，我建议首版就按下面这套上：
 
 - `Go`
-- `MySQL 8`
+- `SQLite`
 - `Caddy`
 - `Ed25519`
 - 管理后台服务端渲染
