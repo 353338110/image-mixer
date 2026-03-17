@@ -20,7 +20,8 @@ if not exist "%ROOT_DIR%\frontend\windows" (
 
 echo [3/5] Build Flutter windows release
 cd /d "%ROOT_DIR%\frontend"
-flutter build windows --release
+call flutter build windows --release
+if errorlevel 1 exit /b 1
 cd /d "%ROOT_DIR%"
 
 echo [4/5] Copy backend into app bundle
