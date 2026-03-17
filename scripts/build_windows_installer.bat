@@ -16,7 +16,7 @@ if not exist "%DIST_DIR%" mkdir "%DIST_DIR%"
 
 where /q iscc
 if errorlevel 1 (
-  echo Inno Setup (iscc) not found. Please install Inno Setup and add it to PATH.
+  echo Inno Setup compiler iscc not found. Please install Inno Setup and add it to PATH.
   exit /b 1
 )
 
