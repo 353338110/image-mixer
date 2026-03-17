@@ -14,16 +14,16 @@
 
 ## 技术选型
 
-选择：`Go + SQLite + Caddy`
+选择：`Go + MySQL 8 + Caddy`
 
 原因：
 
 - Go 内存占用低，单二进制部署简单
 - 标准库 + 少量依赖即可完成 API 和后台页面
-- SQLite 适合单机后台，运维成本低
+- MySQL 适合后续扩展、并发访问、备份恢复和运营查询
 - Caddy 自动处理 HTTPS 证书，适合 `mixer.douxing.cc`
 
-不建议首版就上 PostgreSQL、Redis、前后端分离管理台。你现在最需要的是能卖、能控、能追踪，不是大而全。
+不建议首版再额外引入 Redis、前后端分离管理台。你现在最需要的是能卖、能控、能追踪，不是大而全。
 
 ## 部署结构
 
@@ -37,7 +37,7 @@ Caddy (HTTPS, mixer.douxing.cc)
 imagemixer-license-server (Go)
   |
   v
-SQLite (data/license.db)
+MySQL 8
 ```
 
 建议目录：
@@ -45,9 +45,18 @@ SQLite (data/license.db)
 ```text
 /opt/imagemixer-license/
   bin/license-server
-  data/license.db
-  data/backups/
   config/.env
+  scripts/Caddyfile
+  logs/
+  backups/
+```
+
+MySQL 建议单独部署：
+
+```text
+/opt/mysql/
+  data/
+  backups/
   logs/
 ```
 
@@ -169,6 +178,19 @@ SQLite (data/license.db)
 
 ## 数据表设计
 
+建议统一使用：
+
+- `MySQL 8.0`
+- `InnoDB`
+- `utf8mb4`
+- `utf8mb4_0900_ai_ci`
+- 时间字段统一存 UTC
+
+ID 如果希望后续对外暴露更安全，建议：
+
+- 数据库主键使用 `BIGINT UNSIGNED AUTO_INCREMENT`
+- 对外显示再增加业务 ID，例如 `lic_xxx`、`dev_xxx`
+
 ### admins
 
 - `id`
@@ -231,6 +253,30 @@ SQLite (data/license.db)
 - `license_payload_json`
 - `expires_at`
 - `created_at`
+
+## MySQL 索引建议
+
+首版至少加这些索引：
+
+- `licenses.code` 唯一索引
+- `licenses.status, valid_until` 组合索引
+- `devices.license_id, status` 组合索引
+- `devices.fingerprint_hash` 索引
+- `activation_events.license_id, created_at` 组合索引
+- `activation_events.device_id, created_at` 组合索引
+- `issued_licenses.license_id, device_id` 组合索引
+
+推荐字段类型：
+
+- `code`: `varchar(64)`
+- `edition`: `varchar(32)`
+- `status`: `varchar(32)`
+- `customer_name`: `varchar(128)`
+- `customer_email`: `varchar(128)`
+- `fingerprint_hash`: `char(64)`
+- `ip`: `varchar(64)`
+- `features_json`: `json`
+- `license_payload_json`: `json`
 
 ## 管理后台功能
 
@@ -379,7 +425,7 @@ SQLite (data/license.db)
 ### 第一阶段
 
 - Go 服务端
-- SQLite
+- MySQL 8
 - 管理员登录
 - 激活码管理
 - 设备绑定
@@ -417,14 +463,16 @@ SQLite (data/license.db)
 - Caddy 负责 TLS
 - Go 服务监听 `127.0.0.1:18080`
 - Caddy 反代到 Go 服务
-- SQLite 文件每日备份
+- MySQL 建议监听内网或本机 `127.0.0.1:3306`
+- 每日执行 `mysqldump` 备份
+- 定期保留全量备份和最近 7 天增量备份
 
 ## 首版结论
 
 如果目标是尽快售卖，我建议首版就按下面这套上：
 
 - `Go`
-- `SQLite`
+- `MySQL 8`
 - `Caddy`
 - `Ed25519`
 - 管理后台服务端渲染
