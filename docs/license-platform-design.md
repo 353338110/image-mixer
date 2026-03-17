@@ -5,6 +5,7 @@
 面向 `ImageMixer` 桌面软件，提供一套可商用的授权后台，满足：
 
 - 后台生成激活码
+- 后台批量生成激活码
 - 配置生效时间、失效时间、最大激活设备数
 - 记录每台激活设备的详细信息
 - 支持禁用激活码、踢设备、续期
@@ -59,6 +60,7 @@ SQLite (data/license.db)
 1. 管理后台
    - 管理员登录
    - 创建激活码
+   - 批量生成激活码
    - 查询激活码
    - 查看设备列表
    - 禁用激活码
@@ -99,6 +101,7 @@ SQLite (data/license.db)
 每个激活码建议包含这些属性：
 
 - `code`
+- `batch_no`
 - `product_code`
 - `edition`
 - `status`
@@ -196,6 +199,7 @@ ID 如果希望后续对外暴露更安全，建议：
 
 - `id`
 - `code`
+- `batch_no`
 - `product_code`
 - `edition`
 - `status`
@@ -246,17 +250,36 @@ ID 如果希望后续对外暴露更安全，建议：
 - `expires_at`
 - `created_at`
 
+### license_batches
+
+- `id`
+- `batch_no`
+- `product_code`
+- `edition`
+- `quantity`
+- `valid_from`
+- `valid_until`
+- `max_devices`
+- `features_json`
+- `customer_name`
+- `customer_email`
+- `note`
+- `created_by`
+- `created_at`
+
 ## SQLite 索引建议
 
 首版至少加这些索引：
 
 - `licenses.code` 唯一索引
+- `licenses.batch_no` 索引
 - `licenses.status, valid_until` 组合索引
 - `devices.license_id, status` 组合索引
 - `devices.fingerprint_hash` 索引
 - `activation_events.license_id, created_at` 组合索引
 - `activation_events.device_id, created_at` 组合索引
 - `issued_licenses.license_id, device_id` 组合索引
+- `license_batches.batch_no` 唯一索引
 
 推荐字段类型：
 
@@ -276,6 +299,7 @@ ID 如果希望后续对外暴露更安全，建议：
 
 - 管理员登录
 - 创建激活码
+- 批量创建激活码
 - 编辑有效期
 - 编辑最大设备数
 - 查看激活设备
@@ -346,6 +370,8 @@ ID 如果希望后续对外暴露更安全，建议：
 - `POST /api/admin/login`
 - `GET /api/admin/licenses`
 - `POST /api/admin/licenses`
+- `POST /api/admin/licenses/batch-create`
+- `GET /api/admin/license-batches`
 - `PATCH /api/admin/licenses/{id}`
 - `POST /api/admin/licenses/{id}/disable`
 - `GET /api/admin/licenses/{id}/devices`
@@ -406,7 +432,7 @@ ID 如果希望后续对外暴露更安全，建议：
 
 先做最小可卖版本：
 
-- 每个订单后台手动创建激活码
+- 每个订单后台手动创建激活码或批量生成激活码
 - 手工设置客户名、有效期、设备数
 - 付款成功后发激活码给客户
 
