@@ -13,15 +13,20 @@ if errorlevel 1 (
 echo [1/4] Build backend
 call "%ROOT_DIR%\scripts\build_backend.bat"
 
-echo [2/4] Build Flutter windows release
+if not exist "%ROOT_DIR%\frontend\windows" (
+  echo [2/5] Bootstrap Flutter desktop hosts
+  call "%ROOT_DIR%\scripts\bootstrap_frontend.bat"
+)
+
+echo [3/5] Build Flutter windows release
 cd /d "%ROOT_DIR%\frontend"
 flutter build windows --release
 cd /d "%ROOT_DIR%"
 
-echo [3/4] Copy backend into app bundle
+echo [4/5] Copy backend into app bundle
 call "%ROOT_DIR%\scripts\copy_backend_to_app.bat"
 
-echo [4/4] Build installer
+echo [5/5] Build installer
 call "%ROOT_DIR%\scripts\build_windows_installer.bat"
 
 echo Done: %ROOT_DIR%\dist\ImageMixer-Setup.exe
