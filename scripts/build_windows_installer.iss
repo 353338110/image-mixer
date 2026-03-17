@@ -4,23 +4,7 @@
 #define AppVersion "1.0.0"
 #define AppPublisher "ImageMixer"
 #define AppBuildDir "frontend\\build\\windows\\x64\\runner\\Release"
-#define AppExeName GetFirstExeFile()
-
-[Code]
-function GetFirstExeFile(): string;
-var
-  FindRec: TFindRec;
-begin
-  Result := '';
-  if FindFirst(ExpandConstant('{#AppBuildDir}') + '\*.exe', FindRec) then
-  begin
-    try
-      Result := FindRec.Name;
-    finally
-      FindClose(FindRec);
-    end;
-  end;
-end;
+#define AppExeName "imagemixer_desktop.exe"
 
 [Setup]
 AppId={{A0A1C54B-8F62-4F3D-9F8C-6C88A9B2F11D}
