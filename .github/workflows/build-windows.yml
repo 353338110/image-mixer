@@ -32,8 +32,14 @@ jobs:
         run: choco install innosetup -y
 
       - name: Build Windows Installer
-        shell: cmd
-        run: scripts\package_all.bat
+        shell: pwsh
+        run: |
+          cmd /c "scripts\package_all.bat > build-windows.log 2>&1"
+          $exitCode = $LASTEXITCODE
+          Get-Content build-windows.log
+          if ($exitCode -ne 0) {
+            exit $exitCode
+          }
 
       - name: Locate Installer
         shell: pwsh
@@ -50,3 +56,11 @@ jobs:
             dist/ImageMixer-Setup.exe
             scripts/dist/ImageMixer-Setup.exe
             **/ImageMixer-Setup.exe
+
+      - name: Upload Build Log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ImageMixer-Windows-Build-Log
+          if-no-files-found: error
+          path: build-windows.log
