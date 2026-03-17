@@ -4,6 +4,8 @@ setlocal
 set ROOT_DIR=%~dp0..
 cd /d "%ROOT_DIR%"
 
+if not exist "%ROOT_DIR%\dist" mkdir "%ROOT_DIR%\dist"
+
 where /q iscc
 if errorlevel 1 (
   echo Inno Setup (iscc) not found. Please install Inno Setup and add it to PATH.
@@ -23,6 +25,6 @@ if not exist "%BACKEND_EXE%" (
   exit /b 1
 )
 
-iscc "%ROOT_DIR%\scripts\build_windows_installer.iss"
+iscc /O"%ROOT_DIR%\dist" "%ROOT_DIR%\scripts\build_windows_installer.iss"
 
 echo Installer generated under %ROOT_DIR%\dist\
