@@ -289,8 +289,10 @@ class _HomePageState extends State<HomePage> {
           ? ""
           : "，示例错误: ${result.failedSamples.first}";
       setState(() {
-        _status =
-            "处理完成: ${result.stats.processedFiles}/${result.stats.totalFiles}，失败 ${result.stats.failedFiles}$failedNote";
+        final elapsed = result.stats.elapsedSeconds.toStringAsFixed(1);
+        _status = "处理完成: ${result.stats.processedFiles}/"
+            "${result.stats.totalFiles}，失败 ${result.stats.failedFiles}，"
+            "耗时 $elapsed 秒，输出: ${result.stats.outputDir}$failedNote";
         _failedSamples = result.failedSamples;
       });
     } catch (err) {

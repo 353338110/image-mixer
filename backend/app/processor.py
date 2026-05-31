@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import os
 import random
 import time
@@ -29,7 +30,24 @@ if not HEIF_SUPPORTED:
 
 def _list_images(input_dir: Path, recursive: bool) -> list[Path]:
     iterator = input_dir.rglob("*") if recursive else input_dir.glob("*")
-    return [path for path in iterator if path.is_file() and path.suffix.lower() in IMAGE_EXTENSIONS]
+    return sorted(
+        path
+        for path in iterator
+        if path.is_file() and path.suffix.lower() in IMAGE_EXTENSIONS
+    )
+
+
+def _is_relative_to(path: Path, parent: Path) -> bool:
+    try:
+        path.relative_to(parent)
+        return True
+    except ValueError:
+        return False
+
+
+def _stable_path_seed(path: Path) -> int:
+    digest = hashlib.sha256(path.as_posix().encode("utf-8")).digest()
+    return int.from_bytes(digest[:8], "big")
 
 
 def _preset_params(name: str) -> dict:
@@ -216,7 +234,7 @@ def _process_one(
 ) -> tuple[bool, str | None]:
     try:
         with Image.open(path) as img:
-            rng = random.Random((seed or 0) + hash(path.as_posix()))
+            rng = random.Random((seed or 0) + _stable_path_seed(path))
             image = _apply_pipeline(img, rng, params)
             exif = img.getexif()
 
@@ -294,9 +312,15 @@ def process_images(request: ProcessRequest) -> ProcessResponse:
     output_dir = Path(request.output_dir).expanduser().resolve()
     if not input_dir.exists() or not input_dir.is_dir():
         raise ValueError(f"input_dir does not exist or is not a directory: {input_dir}")
+    if output_dir == input_dir:
+        raise ValueError("output_dir must be different from input_dir")
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    images = _list_images(input_dir, request.recursive)
+    images = [
+        path
+        for path in _list_images(input_dir, request.recursive)
+        if not _is_relative_to(path, output_dir)
+    ]
     params = _resolve_params(request)
 
     workers = request.max_workers if request.max_workers > 0 else max(2, min(16, (os.cpu_count() or 4)))
