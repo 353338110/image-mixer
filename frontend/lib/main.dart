@@ -43,7 +43,6 @@ class _HomePageState extends State<HomePage> {
   int _maxWorkers = 0;
   String _processPreset = "invisible";
   String _processOutputFormat = "keep";
-  int? _processSeed;
   bool _processCustomEnabled = true;
   bool _enableCrop = true;
   double _cropRatio = 0.995;
@@ -72,6 +71,7 @@ class _HomePageState extends State<HomePage> {
   late final TextEditingController _saturationController;
   late final TextEditingController _noiseSigmaController;
   late final TextEditingController _jpegQualityController;
+  late final TextEditingController _processSeedController;
 
   bool _isLoading = false;
   String _status = "Ready";
@@ -90,6 +90,7 @@ class _HomePageState extends State<HomePage> {
     _saturationController = TextEditingController(text: _saturation.toStringAsFixed(3));
     _noiseSigmaController = TextEditingController(text: _noiseSigma.toStringAsFixed(2));
     _jpegQualityController = TextEditingController(text: _jpegQuality.toString());
+    _processSeedController = TextEditingController();
     _initBackend();
   }
 
@@ -107,6 +108,7 @@ class _HomePageState extends State<HomePage> {
     _saturationController.dispose();
     _noiseSigmaController.dispose();
     _jpegQualityController.dispose();
+    _processSeedController.dispose();
     _backendProcess?.kill();
     super.dispose();
   }
@@ -208,6 +210,64 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  double? _readDoubleParam(
+    TextEditingController controller,
+    String label,
+    double min,
+    double max,
+  ) {
+    final raw = controller.text.trim();
+    final value = double.tryParse(raw);
+    if (value == null) {
+      _showValidationError("$label 必须是数字。");
+      return null;
+    }
+    if (value < min || value > max) {
+      _showValidationError("$label 必须在 $min-$max 之间。");
+      return null;
+    }
+    return value;
+  }
+
+  int? _readIntParam(
+    TextEditingController controller,
+    String label,
+    int min,
+    int max,
+  ) {
+    final raw = controller.text.trim();
+    final value = int.tryParse(raw);
+    if (value == null) {
+      _showValidationError("$label 必须是整数。");
+      return null;
+    }
+    if (value < min || value > max) {
+      _showValidationError("$label 必须在 $min-$max 之间。");
+      return null;
+    }
+    return value;
+  }
+
+  int? _readOptionalSeed() {
+    final raw = _processSeedController.text.trim();
+    if (raw.isEmpty) {
+      return null;
+    }
+    final value = int.tryParse(raw);
+    if (value == null) {
+      _showValidationError("随机种子必须是整数，或留空。");
+      return null;
+    }
+    return value;
+  }
+
+  void _showValidationError(String message) {
+    setState(() {
+      _status = message;
+      _failedSamples = [];
+    });
+  }
+
   Future<void> _processImages() async {
     final inputDir = _inputDirController.text.trim();
     final outputDir = _processOutputDirController.text.trim();
@@ -224,40 +284,70 @@ class _HomePageState extends State<HomePage> {
       return;
     }
 
+    var cropRatio = _cropRatio;
+    var rotateDeg = _rotateDeg;
+    var maxSize = _maxSize;
+    var zoomFactor = _zoomFactor;
+    var brightness = _brightness;
+    var contrast = _contrast;
+    var saturation = _saturation;
+    var noiseSigma = _noiseSigma;
+    var jpegQuality = _jpegQuality;
+
+    if (_processCustomEnabled) {
+      final parsedCropRatio =
+          _readDoubleParam(_cropRatioController, "裁剪比例", 0.5, 1.0);
+      final parsedRotateDeg =
+          _readDoubleParam(_rotateDegController, "旋转角度", 0.0, 5.0);
+      final parsedMaxSize =
+          _readIntParam(_maxSizeController, "最大边", 256, 12000);
+      final parsedZoomFactor =
+          _readDoubleParam(_zoomFactorController, "放大倍数", 1.0, 1.2);
+      final parsedBrightness =
+          _readDoubleParam(_brightnessController, "亮度扰动", 0.0, 0.2);
+      final parsedContrast =
+          _readDoubleParam(_contrastController, "对比度扰动", 0.0, 0.2);
+      final parsedSaturation =
+          _readDoubleParam(_saturationController, "饱和度扰动", 0.0, 0.2);
+      final parsedNoiseSigma =
+          _readDoubleParam(_noiseSigmaController, "噪声 σ", 0.0, 8.0);
+      final parsedJpegQuality =
+          _readIntParam(_jpegQualityController, "压缩质量", 60, 100);
+
+      if (parsedCropRatio == null ||
+          parsedRotateDeg == null ||
+          parsedMaxSize == null ||
+          parsedZoomFactor == null ||
+          parsedBrightness == null ||
+          parsedContrast == null ||
+          parsedSaturation == null ||
+          parsedNoiseSigma == null ||
+          parsedJpegQuality == null) {
+        return;
+      }
+
+      cropRatio = parsedCropRatio;
+      rotateDeg = parsedRotateDeg;
+      maxSize = parsedMaxSize;
+      zoomFactor = parsedZoomFactor;
+      brightness = parsedBrightness;
+      contrast = parsedContrast;
+      saturation = parsedSaturation;
+      noiseSigma = parsedNoiseSigma;
+      jpegQuality = parsedJpegQuality;
+    }
+
+    final seed = _readOptionalSeed();
+    if (_processSeedController.text.trim().isNotEmpty && seed == null) {
+      return;
+    }
+
     setState(() {
       _isLoading = true;
       _status = "正在批量处理图片...";
     });
     final api = ApiClient(_backendUrlController.text.trim());
     try {
-      final cropRatio = double.tryParse(_cropRatioController.text.trim());
-      final rotateDeg = double.tryParse(_rotateDegController.text.trim());
-      final maxSize = int.tryParse(_maxSizeController.text.trim());
-      final zoomFactor = double.tryParse(_zoomFactorController.text.trim());
-      final brightness = double.tryParse(_brightnessController.text.trim());
-      final contrast = double.tryParse(_contrastController.text.trim());
-      final saturation = double.tryParse(_saturationController.text.trim());
-      final noiseSigma = double.tryParse(_noiseSigmaController.text.trim());
-      final jpegQuality = int.tryParse(_jpegQualityController.text.trim());
-
-      if (_processCustomEnabled) {
-        if (cropRatio == null ||
-            rotateDeg == null ||
-            maxSize == null ||
-            zoomFactor == null ||
-            brightness == null ||
-            contrast == null ||
-            saturation == null ||
-            noiseSigma == null ||
-            jpegQuality == null) {
-          setState(() {
-            _status = "自定义参数格式不正确，请检查输入值。";
-          });
-          _isLoading = false;
-          return;
-        }
-      }
-
       final result = await api.processImages(
         inputDir: inputDir,
         outputDir: outputDir,
@@ -267,23 +357,23 @@ class _HomePageState extends State<HomePage> {
         outputFormat: _processOutputFormat,
         customEnabled: _processCustomEnabled,
         enableCrop: _enableCrop,
-        cropRatio: cropRatio ?? _cropRatio,
+        cropRatio: cropRatio,
         enableRotate: _enableRotate,
-        rotateDeg: rotateDeg ?? _rotateDeg,
+        rotateDeg: rotateDeg,
         enableResize: _enableResize,
-        maxSize: maxSize ?? _maxSize,
+        maxSize: maxSize,
         enableZoom: _enableZoom,
-        zoomFactor: zoomFactor ?? _zoomFactor,
+        zoomFactor: zoomFactor,
         enableColor: _enableColor,
-        brightness: brightness ?? _brightness,
-        contrast: contrast ?? _contrast,
-        saturation: saturation ?? _saturation,
+        brightness: brightness,
+        contrast: contrast,
+        saturation: saturation,
         enableNoise: _enableNoise,
-        noiseSigma: noiseSigma ?? _noiseSigma,
+        noiseSigma: noiseSigma,
         enableCompress: _enableCompress,
-        jpegQuality: jpegQuality ?? _jpegQuality,
+        jpegQuality: jpegQuality,
         enableExif: _enableExif,
-        seed: _processSeed,
+        seed: seed,
       );
       final failedNote = result.failedSamples.isEmpty
           ? ""
@@ -312,7 +402,6 @@ class _HomePageState extends State<HomePage> {
 
       _processPreset = "invisible";
       _processOutputFormat = "keep";
-      _processSeed = null;
       _processCustomEnabled = true;
       _enableCrop = true;
       _cropRatio = 0.995;
@@ -341,6 +430,7 @@ class _HomePageState extends State<HomePage> {
       _saturationController.text = _saturation.toStringAsFixed(3);
       _noiseSigmaController.text = _noiseSigma.toStringAsFixed(2);
       _jpegQualityController.text = _jpegQuality.toString();
+      _processSeedController.clear();
     });
   }
 
@@ -493,14 +583,12 @@ class _HomePageState extends State<HomePage> {
                         SizedBox(
                           width: 140,
                           child: TextField(
+                            controller: _processSeedController,
                             decoration: const InputDecoration(
                               labelText: "随机种子（可选）",
                               border: OutlineInputBorder(),
                             ),
                             keyboardType: TextInputType.number,
-                            onChanged: (value) {
-                              _processSeed = int.tryParse(value);
-                            },
                           ),
                         ),
                         const SizedBox(width: 8),
